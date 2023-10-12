@@ -130,6 +130,11 @@ func NewFormatterJSON(opts Options) Formatter {
 	return newFormatter(opts, outputJSON)
 }
 
+// NewFormatterKlog constructs a Formatter which emits a klog-like format.
+func NewFormatterKlog(opts Options) Formatter {
+	return newFormatter(opts, outputKlog)
+}
+
 // Defaults for Options.
 const defaultTimestampFormat = "2006-01-02 15:04:05.000000"
 const defaultMaxLogDepth = 16
@@ -171,15 +176,23 @@ const (
 	outputKeyValue outputFormat = iota
 	// outputJSON emits strict JSON.
 	outputJSON
+	// outputKlog emits klog-like format
+	outputKlog
 )
 
 // PseudoStruct is a list of key-value pairs that gets logged as a struct.
 type PseudoStruct []any
 
 // render produces a log line, ready to use.
-func (f Formatter) render(builtins, args []any) string {
+func (f Formatter) render(msg string, builtins, args []any) string {
 	// Empirically bytes.Buffer is faster than strings.Builder for this.
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
+	if f.outputFormat == outputKlog {
+		buf.WriteByte('"')
+		buf.WriteString(msg)
+		buf.WriteByte('"')
+		buf.WriteByte(' ')
+	}
 	if f.outputFormat == outputJSON {
 		buf.WriteByte('{')
 	}
@@ -668,8 +681,11 @@ func (f Formatter) FormatInfo(level int, msg string, kvList []any) (prefix, args
 	if policy := f.opts.LogCaller; policy == All || policy == Info {
 		args = append(args, "caller", f.caller())
 	}
-	args = append(args, "level", level, "msg", msg)
-	return prefix, f.render(args, kvList)
+	args = append(args, "level", level)
+	if f.outputFormat != outputKlog {
+		args = append(args, "msg", msg)
+	}
+	return prefix, f.render(msg, args, kvList)
 }
 
 // FormatError renders an Error log message into strings.  The prefix will be
@@ -688,13 +704,15 @@ func (f Formatter) FormatError(err error, msg string, kvList []any) (prefix, arg
 	if policy := f.opts.LogCaller; policy == All || policy == Error {
 		args = append(args, "caller", f.caller())
 	}
-	args = append(args, "msg", msg)
+	if f.outputFormat != outputKlog {
+		args = append(args, "msg", msg)
+	}
 	var loggableErr any
 	if err != nil {
 		loggableErr = err.Error()
 	}
 	args = append(args, "error", loggableErr)
-	return prefix, f.render(args, kvList)
+	return prefix, f.render(msg, args, kvList)
 }
 
 // AddName appends the specified name.  formatr uses '/' characters to separate
