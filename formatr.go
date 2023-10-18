@@ -189,7 +189,7 @@ func (f Formatter) render(msg string, builtins, args []any) string {
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	if f.outputFormat == outputKlog {
 		buf.WriteByte('"')
-		buf.WriteString(msg)
+		buf.WriteString(strings.TrimSuffix(msg, "\n"))
 		buf.WriteByte('"')
 		buf.WriteByte(' ')
 	}
