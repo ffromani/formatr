@@ -779,7 +779,7 @@ func TestRender(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			test := func(t *testing.T, formatter Formatter, expect string) {
 				formatter.AddValues(tc.values)
-				r := formatter.render(tc.builtins, tc.args)
+				r := formatter.render("", tc.builtins, tc.args)
 				if r != expect {
 					t.Errorf("wrong output:\nexpected %v\n     got %v", expect, r)
 				}
